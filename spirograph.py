@@ -1,6 +1,6 @@
 import math
 import itertools
-from typing import Self, Literal, Optional
+from typing import Self, Literal, Optional, Type
 from collections.abc import Iterable
 
 import numpy as np
@@ -36,28 +36,27 @@ class Arm:
 
 
 class Animate:
-    animation: FuncAnimation
-    fig: Figure
-    ax: Axes
-    arms: list[Arm]
-    frames: Optional[int]
-    lines: list[Line2D] = []
-    traces: list[Line2D] = []
-    dots: list[Line2D] = []
-    central_dot: Line2D = []
-    total_arm_length: float = 0
+    def __init__(self: Self, arms: list[Arm], frames: Optional[int] = None, delta_angle: float = 0.02) -> None:
+        self.arms: list[Arm] = arms
+        self.frames: Optional[int] = frames
 
-    DELTA_ANGLE: float = 0.02
-    SCALE_FACTOR: int = 10000
+        self.lines: list[Line2D] = []
+        self.traces: list[Line2D] = []
+        self.dots: list[Line2D] = []
 
-    def __init__(self: Self, arms: list[Arm], frames: Optional[int] = None) -> None:
-        self.arms = arms
-        self.frames = frames
+        self.fig: Figure
+        self.ax: Axes
+        self.fig, self.ax = plt.subplots(figsize=(10, 10))
+        self.central_dot: Line2D = self.ax.plot([0], [0], color='black', markersize=5, marker='D')[0]
+
+        self.max_arm_length: float = 0.0
+        self.animation: FuncAnimation
+        self.DELTA_ANGLE: float = delta_angle
+        self.SCALE_FACTOR: int = 1000
 
         self.main()
 
     def main(self: Self):
-        self.fig, self.ax = plt.subplots(figsize=(10, 10))
         self.ax.set_aspect('equal', 'box')
         self.ax.grid(True)
         self.ax.set_xticklabels([])
@@ -66,7 +65,7 @@ class Animate:
         plt.subplots_adjust(left=0, right=1, top=0.95, bottom=0.05)
 
         for arm in self.arms:
-            self.total_arm_length += arm.length * self.SCALE_FACTOR
+            self.max_arm_length += arm.length * self.SCALE_FACTOR
             line: Line2D = self.ax.plot([], [], color=arm.color, linewidth=1)[0]
             trace: Line2D = self.ax.plot([], [], color=arm.color, linewidth=1)[0]
             dot: Line2D = self.ax.plot([], [], color=arm.color, markersize=5, marker='o')[0]
@@ -74,10 +73,8 @@ class Animate:
             self.traces.append(trace)
             self.dots.append(dot)
 
-        self.central_dot: Line2D = self.ax.plot([], [], color='black', markersize=5, marker='o')[0]
-
-        self.ax.set_xlim(-self.total_arm_length - 10, self.total_arm_length + 10)
-        self.ax.set_ylim(-self.total_arm_length - 10, self.total_arm_length + 10)
+        self.ax.set_xlim(-self.max_arm_length - 10, self.max_arm_length + 10)
+        self.ax.set_ylim(-self.max_arm_length - 10, self.max_arm_length + 10)
 
         self.animation = FuncAnimation(
             fig=self.fig,
@@ -105,13 +102,21 @@ class Animate:
             self.lines[idx].set_data([arm.center_x, x], [arm.center_y, y])
             self.traces[idx].set_data(arm.trace_points[:, 0], arm.trace_points[:, 1])
             self.dots[idx].set_data([x], [y])
-            self.central_dot.set_data([0], [0])
 
             # Update the arm angle for the next frame
             arm.angle += arm.speed * arm.direction_factor * self.DELTA_ANGLE
             arm.trace_points = np.vstack((arm.trace_points, [x, y]))
 
-        return self.lines + self.traces + self.dots + [self.central_dot]
+            if arm.length > self.max_arm_length:
+                self.max_arm_length = arm.length
+
+            self.ax.set_xlim(-self.max_arm_length - (5 * self.SCALE_FACTOR), self.max_arm_length + (5 * self.SCALE_FACTOR))
+            self.ax.set_ylim(-self.max_arm_length - (5 * self.SCALE_FACTOR), self.max_arm_length + (5 * self.SCALE_FACTOR))
+
+        return self.lines + [self.central_dot] + self.traces + self.dots
+
+    def on_key(self):
+        ...
 
 
 if __name__ == '__main__':
