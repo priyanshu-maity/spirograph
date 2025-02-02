@@ -32,7 +32,7 @@ class Arm:
         self.start_angle: float = start_angle
         self.angle: float = start_angle
 
-        self.trace_points: np.ndarray = np.ndarray((1, 2), dtype=np.float32)
+        self.trace_points: np.ndarray = np.zeros((0, 2), dtype=np.float32)
 
 
 class Animate:
@@ -48,7 +48,7 @@ class Animate:
     total_arm_length: float = 0
 
     DELTA_ANGLE: float = 0.02
-    SCALE_FACTOR: int = 20
+    SCALE_FACTOR: int = 10000
 
     def __init__(self: Self, arms: list[Arm], frames: Optional[int] = None) -> None:
         self.arms = arms
@@ -60,6 +60,10 @@ class Animate:
         self.fig, self.ax = plt.subplots(figsize=(10, 10))
         self.ax.set_aspect('equal', 'box')
         self.ax.grid(True)
+        self.ax.set_xticklabels([])
+        self.ax.set_yticklabels([])
+
+        plt.subplots_adjust(left=0, right=1, top=0.95, bottom=0.05)
 
         for arm in self.arms:
             self.total_arm_length += arm.length * self.SCALE_FACTOR
@@ -105,8 +109,7 @@ class Animate:
 
             # Update the arm angle for the next frame
             arm.angle += arm.speed * arm.direction_factor * self.DELTA_ANGLE
-            if abs(x) <= self.total_arm_length or abs(y) <= self.total_arm_length:
-                arm.trace_points = np.vstack((arm.trace_points, [x, y]))
+            arm.trace_points = np.vstack((arm.trace_points, [x, y]))
 
         return self.lines + self.traces + self.dots + [self.central_dot]
 
@@ -124,6 +127,3 @@ if __name__ == '__main__':
     arm10 = Arm(center=(0, 0), length=10, speed=1, color='teal', start_angle=math.pi, direction='CW')
 
     Animate([arm1, arm2, arm3, arm4, arm5, arm6, arm7, arm8, arm9, arm10])
-
-    for arm in [arm1, arm2, arm3, arm4, arm5, arm6, arm7, arm8, arm9, arm10]:
-        print(arm.color, arm.trace_points)
